@@ -16,12 +16,12 @@ public class SpringKubernetesApplication {
     private String valueDependingOnEnvironment;
     // do stuff with the environment dependent value, delete it or define more... e.g.:
 
+    public static void main(String[] args) {
+        SpringApplication.run(SpringKubernetesApplication.class, args);
+    }
+
     @PostConstruct
     public void doSomething() {
         logger.info("Property value.depending.on.environment value is {}", valueDependingOnEnvironment);
-    }
-
-    public static void main(String[] args) {
-        SpringApplication.run(SpringKubernetesApplication.class, args);
     }
 }

@@ -1,0 +1,115 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.0.6'
+    id 'io.spring.dependency-management' version '1.1.0'
+}
+
+/* Profile definition */
+// these names have to match the application profiles in src/main/resources/
+def DEV_PROFILE = "dev"
+def PROD_PROFILE = "prod"
+def TEST_PROFILE = "test"
+
+group = 'com.thecoder777'
+// Don't forget to change the version number in the Dockerfile and in the YAML config too
+version = '0.0.1'
+sourceCompatibility = '17'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+// configure spring profile
+ext.configureProfiles = { profile ->
+    tasks.bootRun.configure {
+        systemProperty "spring.profiles.active", profile
+        jvmArgs(
+                "-Dspring.profiles.active=${profile}"
+        )
+    }
+}
+
+/* Enable bootJar/jar */
+
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = true
+}
+
+/* Tasks */
+
+tasks.named("jar") {
+    // baseName = group // if you want you can add the base name to your final jar here
+    archiveFileName.set("${rootProject.name}-${version}.jar")
+}
+
+tasks.register('testSpring', Test) {
+    group = "spring local"
+    println "Run all " + rootProject.name + " tests using the test profile"
+
+    doFirst {
+        configureProfiles(TEST_PROFILE)
+    }
+
+    useJUnitPlatform()
+}
+
+tasks.named("test") {
+    /* uncomment this if you want tests to run before every deployment */
+    //useJUnitPlatform()
+}
+
+tasks.register('runSpringDev') {
+    group = "spring local"
+    println "Run " + rootProject.name + " with development profile"
+
+    doFirst {
+        configureProfiles(DEV_PROFILE)
+    }
+
+    finalizedBy("bootRun")
+}
+
+tasks.register('runSpringProd') {
+    group = "spring local"
+    println "Run " + rootProject.name + " with production profile"
+
+    doFirst {
+        configureProfiles(PROD_PROFILE)
+    }
+
+    finalizedBy("bootRun")
+}
+
+tasks.register('buildDockerImage', Exec) {
+    group = "k8s"
+    workingDir "${buildDir}"
+    def tag = "${rootProject.name}:${version}"
+
+    // TODO: maybe inject version into Dockerfile here using sed or sth
+    commandLine "docker", "build", "-t", "${tag}", "-f", "../Dockerfile", "./"
+    doLast {
+        println "Docker image with tag '${tag}' created!"
+    }
+}
+
+bootRun {
+    // make sure we have a colored output
+    environment 'spring.output.ansi.console-available', true
+
+    configure {
+        ignoreExitValue false
+        jvmArgs(
+                '-Dspring.output.ansi.enabled=always'
+        )
+    }
+}
